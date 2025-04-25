@@ -49,7 +49,8 @@ func SaveUrlMapping(shortUrl string, originalUrl string, userId string) error {
 }
 
 func RetrieveInitialUrl(shortUrl string) (string, error) {
-	result, err := storeService.redisClient.Get(ctx, shortUrl).Result()
+	shortUrlKey := "short_url:" + shortUrl
+	result, err := storeService.redisClient.Get(ctx, shortUrlKey).Result()
 	if err != nil && err != redis.Nil {
 		return "", fmt.Errorf("failed to retrieve initial URL for %s: %v", shortUrl, err)
 	}

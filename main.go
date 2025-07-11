@@ -3,75 +3,93 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/AbdelrahmanEssam1007/UrlShort/handler"
 	"github.com/AbdelrahmanEssam1007/UrlShort/store"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+
+	// Swagger packages
+	_ "github.com/AbdelrahmanEssam1007/UrlShort/docs"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// @title           URL Shortener API
+// @version         1.0
+// @description     A simple URL shortener built with Go, Gin, and Redis.
+// @host            localhost:9808
+// @BasePath        /
 func main() {
-	// Load environment variables from .env (only in dev/local)
-	os.Getenv("REDIS_ADDR")
+	// Initialize services
+	store.StoreInit()
 
-	// Set up Gin with default middleware
+	// Setup and run server
+	port := getPort()
+	r := setupRouter()
+	startServer(r, port)
+}
+
+func setupRouter() *gin.Engine {
 	r := gin.Default()
 
-	// Enable CORS
+	// CORS configuration
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"}, // or your frontend domain
+		AllowOrigins:     []string{"http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST"},
 		AllowHeaders:     []string{"Origin", "Content-Type"},
 		AllowCredentials: true,
 	}))
 
-	// GET: Return all shortened URLs
-	r.GET("/", func(c *gin.Context) {
-		urlMap, err := store.GetAllShortUrls()
-		if err != nil {
-			c.JSON(500, gin.H{"message": "Error retrieving short URLs"})
-			return
-		}
+	// Swagger docs route
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-		var shortUrls []gin.H
-		baseURL := os.Getenv("APP_BASE_URL")
-		if baseURL == "" {
-			baseURL = "http://localhost:9808"
-		}
+	// API routes
+	r.GET("/", listShortenedUrls)
+	r.POST("/create-short-url", handler.CreateShortUrl)
+	r.GET("/:shortUrl", handler.HandleShortRedirect)
 
-		for shortCode, originalUrl := range urlMap {
-			shortUrls = append(shortUrls, gin.H{
-				"short_url":    baseURL + "/" + strconv.Itoa(shortCode),
-				"original_url": originalUrl,
-			})
-		}
+	return r
+}
 
-		c.JSON(200, gin.H{
-			"message":    "URL Shortener API!!",
-			"short_urls": shortUrls,
+func listShortenedUrls(c *gin.Context) {
+	urlMap, err := store.GetAllShortUrls()
+	if err != nil {
+		c.JSON(500, gin.H{"message": "Error retrieving short URLs"})
+		return
+	}
+
+	baseURL := os.Getenv("APP_BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:9808"
+	}
+
+	var shortUrls []gin.H
+	for shortCode, originalUrl := range urlMap {
+		shortUrls = append(shortUrls, gin.H{
+			"short_url":    fmt.Sprintf("%s/%d", baseURL, shortCode),
+			"original_url": originalUrl,
 		})
+	}
+
+	c.JSON(200, gin.H{
+		"message":    "URL Shortener API!!",
+		"short_urls": shortUrls,
 	})
+}
 
-	// POST: Create a new short URL
-	r.POST("/create-short-url", func(c *gin.Context) {
-		handler.CreateShortUrl(c)
-	})
-
-	// GET: Redirect from short URL to original URL
-	r.GET("/:shortUrl", func(c *gin.Context) {
-		handler.HandleShortRedirect(c)
-	})
-
-	// Initialize Redis
-	store.StoreInit()
-
-	// Start the server
+func getPort() string {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "9808"
 	}
-	if err := r.Run("0.0.0.0:" + port); err != nil {
+	return port
+}
+
+func startServer(r *gin.Engine, port string) {
+	address := "0.0.0.0:" + port
+	if err := r.Run(address); err != nil {
 		panic(fmt.Sprintf("❌ Failed to start server: %v", err))
 	}
 }

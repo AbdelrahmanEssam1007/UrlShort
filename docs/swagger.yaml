@@ -1,0 +1,85 @@
+basePath: /
+definitions:
+  handler.UrlCreationRequest:
+    properties:
+      long_url:
+        type: string
+      user_id:
+        type: string
+    required:
+    - long_url
+    - user_id
+    type: object
+host: localhost:9808
+info:
+  contact: {}
+  description: A simple URL shortener built with Go, Gin, and Redis.
+  title: URL Shortener API
+  version: "1.0"
+paths:
+  /{shortUrl}:
+    get:
+      description: Redirects the user from a short URL to the original long URL
+      parameters:
+      - description: Short URL code
+        in: path
+        name: shortUrl
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "302":
+          description: Found
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Redirect to original URL
+      tags:
+      - Shortener
+  /create-short-url:
+    post:
+      consumes:
+      - application/json
+      description: Accepts a long URL and user ID and returns a shortened version
+      parameters:
+      - description: Original URL and User ID
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UrlCreationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new short URL
+      tags:
+      - Shortener
+swagger: "2.0"

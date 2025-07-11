@@ -3,8 +3,10 @@ package store
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v8"
+	"os"
 	"time"
+
+	"github.com/go-redis/redis/v8"
 )
 
 type StoreService struct {
@@ -18,27 +20,40 @@ var (
 
 const CacheDuration = 6 * time.Hour
 
+// StoreInit initializes the Redis connection
 func StoreInit() *StoreService {
 	if storeService.redisClient != nil {
 		return storeService
 	}
 
+	// Get Redis address from environment variable
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379" // fallback for local dev
+	}
+
+	redisPassword := os.Getenv("REDIS_PASSWORD") // optional password
+	redisDB := 0
+
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "host.docker.internal:6379", // Redis server address
-		Password: "",                          // No password
-		DB:       0,                           // Default DB
+		Addr:     redisAddr,
+		Password: redisPassword,
+		DB:       redisDB,
 	})
 
+	// Test connection
 	pong, err := redisClient.Ping(ctx).Result()
 	if err != nil {
-		fmt.Printf("Failed to connect to Redis: %v\n", err)
+		fmt.Printf("❌ Failed to connect to Redis: %v\n", err)
 		return nil
 	}
-	fmt.Printf("Redis connection established: %s\n", pong)
+	fmt.Printf("✅ Redis connection established: %s\n", pong)
+
 	storeService.redisClient = redisClient
 	return storeService
 }
 
+// SaveUrlMapping stores the short URL to original URL mapping
 func SaveUrlMapping(shortUrl string, originalUrl string, userId string) error {
 	shortUrlKey := "short_url:" + shortUrl
 	err := storeService.redisClient.Set(ctx, shortUrlKey, originalUrl, CacheDuration).Err()
@@ -48,15 +63,17 @@ func SaveUrlMapping(shortUrl string, originalUrl string, userId string) error {
 	return nil
 }
 
+// RetrieveInitialUrl retrieves the original URL for a given short URL
 func RetrieveInitialUrl(shortUrl string) (string, error) {
 	shortUrlKey := "short_url:" + shortUrl
 	result, err := storeService.redisClient.Get(ctx, shortUrlKey).Result()
 	if err != nil && err != redis.Nil {
-		return "", fmt.Errorf("failed to retrieve initial URL for %s: %v", shortUrl, err)
+		return "", fmt.Errorf("failed to retrieve original URL for %s: %v", shortUrl, err)
 	}
 	return result, nil
 }
 
+// GetAllShortUrls fetches all shortened URLs from Redis
 func GetAllShortUrls() ([]string, error) {
 	keys, err := storeService.redisClient.Keys(ctx, "short_url:*").Result()
 	if err != nil {

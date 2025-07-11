@@ -16,10 +16,12 @@ type UrlCreationRequest struct {
 func CreateShortUrl(c *gin.Context) {
 	var creationRequest UrlCreationRequest
 	if err := c.ShouldBindJSON(&creationRequest); err != nil {
+		fmt.Println("Failed to bind JSON:", err) // 🧪 log this
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	fmt.Printf("Creating short URL for: %s by %s\n", creationRequest.LongUrl, creationRequest.UserId)
 	shortUrl := shortener.GenerateShortUrl(creationRequest.LongUrl, creationRequest.UserId)
 
 	err := store.SaveUrlMapping(shortUrl, creationRequest.LongUrl, creationRequest.UserId)

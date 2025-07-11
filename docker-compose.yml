@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./urlshortbackend
+    container_name: urlshortener-backend
+    ports:
+      - "9808:9808"
+    env_file:
+      - ./UrlShort/.env
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:6.2
+    container_name: urlshortener-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:

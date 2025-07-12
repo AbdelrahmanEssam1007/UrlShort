@@ -1,23 +1,16 @@
-
 services:
-  backend:
-    build:
-      context: ./urlshortbackend
-    container_name: urlshortener-backend
+  app:
+    build: .
     ports:
       - "9808:9808"
     env_file:
-      - ./UrlShort/.env
+      - .env
+    environment:
+      - APP_BASE_URL=${APP_BASE_URL}
     depends_on:
       - redis
 
   redis:
-    image: redis:6.2
-    container_name: urlshortener-redis
+    image: redis:alpine
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
-
-volumes:
-  redis_data:

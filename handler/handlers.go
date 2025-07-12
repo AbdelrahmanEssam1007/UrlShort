@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/AbdelrahmanEssam1007/UrlShort/shortener"
 	"github.com/AbdelrahmanEssam1007/UrlShort/store"
@@ -42,7 +43,10 @@ func CreateShortUrl(c *gin.Context) {
 		return
 	}
 
-	host := "http://localhost:9808/"
+	host := os.Getenv("APP_BASE_URL")
+	if host == "" {
+		host = "http://localhost:9808/" // fallback if env not set
+	}
 	c.JSON(200, gin.H{
 		"message":   "short url created successfully",
 		"short_url": host + shortUrl,
